@@ -253,6 +253,8 @@ add_pack_to_tech("atan-atom-forge", "production-science-pack")
 add_pack_to_tech("atan-atom-forge", "space-science-pack")
 
 -- Remove Vulcanus requirement from Arig
+remove_tech_prereq("planet-discovery-arig", "planet-discovery-vulcanus")
+remove_tech_prereq("planet-discovery-arig", "metallurgic-science-pack")
 add_tech_prereq("planet-discovery-arig", "asteroid-collector")
 remove_pack_from_tech("planet-discovery-arig", "metallurgic-science-pack")
 remove_pack_from_tech("planetaris-arig-roboport", "metallurgic-science-pack")
@@ -264,7 +266,7 @@ remove_pack_from_tech("planetaris-water-harvesting", "metallurgic-science-pack")
 remove_pack_from_tech("planetaris-raw-quartz-productivity", "metallurgic-science-pack")
 
 -- change research time 30 → 60 (same as other starter planet discoveries)
-util.set_tech_unit("planet-discovery-arig", 1000, {{"automation-science-pack", 1}, {"logistic-science-pack", 1}, {"chemical-science-pack", 1}, {"space-science-pack", 1}}, 60)
+set_tech_unit("planet-discovery-arig", 1000, {{"automation-science-pack", 1}, {"logistic-science-pack", 1}, {"chemical-science-pack", 1}, {"space-science-pack", 1}}, 60)
 
 -- Add Vulcanus back as dependency for Hyarion
 if mods["planetaris-hyarion"] then
