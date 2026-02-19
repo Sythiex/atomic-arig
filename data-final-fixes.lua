@@ -1,66 +1,138 @@
-H3_ARIG_RECYCLING = nil
-
+ATOMIC_ARIG_RECYCLING = nil
 if mods["quality"] then
-    H3_ARIG_RECYCLING = require("__quality__/prototypes/recycling")
+    ATOMIC_ARIG_RECYCLING = require("__quality__/prototypes/recycling")
 end
 
-local function removeItemFromRecipe(recipeName, itemName)
-    for i, ingredient in pairs(data.raw["recipe"][recipeName].ingredients) do
-        if ingredient.name == itemName then
-            table.remove(data.raw["recipe"][recipeName].ingredients, i);
+local function add_item_to_recipe(recipe_name, item_name, quantity)
+    table.insert(data.raw["recipe"][recipe_name].ingredients, {
+        type = "item",
+        name = item_name,
+        amount = quantity
+    })
+end
+
+local function remove_item_from_recipe_results(recipe_name, item_name)
+    local recipe = data.raw.recipe[recipe_name]
+    local results = recipe.results
+
+    for i = #results, 1, -1 do
+        local result = results[i]
+        if result[1] == item_name then
+            table.remove(results, i)
         end
+    end
+
+    return
+end
+
+local function change_recipe(name, ingredients, energy_required)
+    local r = data.raw.recipe[name]
+    r.ingredients = ingredients
+    if energy_required then
+        r.energy_required = energy_required
     end
 end
 
-local function removeItemFromRecipeResults(recipeName, itemName)
-    for i, ingredient in pairs(data.raw["recipe"][recipeName].results) do
-        if ingredient.name == itemName then
-            table.remove(data.raw["recipe"][recipeName].results, i);
+local function add_tech_prereq(tech_name, prereq_name)
+    local tech = data.raw.technology[tech_name]
+    local prereq = data.raw.technology[prereq_name]
+    tech.prerequisites = tech.prerequisites or {}
+
+    for _, name in ipairs(tech.prerequisites) do
+        if name == prereq_name then
+            return true
+        end
+    end
+
+    table.insert(tech.prerequisites, prereq_name)
+    return true
+end
+
+local function remove_tech_prereq(tech_name, prereq_name)
+    local tech = data.raw.technology[tech_name]
+    local out = {}
+    local removed = false
+
+    for _, name in ipairs(tech.prerequisites) do
+        if name ~= prereq_name then
+            table.insert(out, name)
+        else
+            removed = true
+        end
+    end
+
+    tech.prerequisites = out
+    return removed
+end
+
+local function add_pack_to_tech(tech_name, item_name, quantity)
+    table.insert(data.raw["technology"][tech_name].unit.ingredients, {item_name, quantity or 1})
+end
+
+local function remove_pack_from_tech(tech_name, item_name)
+    local tech = data.raw.technology[tech_name]
+    local ingredients = tech.unit.ingredients
+    local removed = false
+
+    for i = #ingredients, 1, -1 do
+        local ingredient = ingredients[i]
+        if ingredient[1] == item_name then
+            table.remove(ingredients, i)
+            removed = true
+        end
+    end
+
+    return removed
+end
+
+--- tech_name: Technology prototype name (string)
+--- count: Total number of research cycles (integer) (optional)
+--- ingredients: Science packs required per cycle (table) (optional)
+--- time: Seconds per cycle (number) (optional)
+local function set_tech_unit(tech_name, count, ingredients, time)
+    local tech = data.raw.technology[tech_name]
+    tech.unit = tech.unit or {}
+    tech.unit.count_formula = nil
+
+    if count ~= nil then
+        tech.unit.count = count
+    end
+    if ingredients ~= nil then
+        tech.unit.ingredients = ingredients
+    end
+    if time ~= nil then
+        tech.unit.time = time
+    end
+
+    return
+end
+
+local function remove_lab_input(lab_name, input)
+    if not data.raw["lab"][lab_name] then
+        return
+    end
+
+    local lab = data.raw["lab"][lab_name]
+    if not lab.inputs then
+        return
+    end
+
+    for i = #lab.inputs, 1, -1 do
+        if lab.inputs[i] == input then
+            table.remove(lab.inputs, i)
         end
     end
 end
-
-local function addItemToRecipe(recipeName, itemName, quantity)
-    table.insert(data.raw["recipe"][recipeName].ingredients, {type = "item", name = itemName, amount = quantity});
-end
-
-local function addFluidToRecipe(recipeName, fluidName, quantity)
-    table.insert(data.raw["recipe"][recipeName].ingredients, {type = "fluid", name = fluidName, amount = quantity});
-end
-
-local function removePackFromTech(techName, itemName)
-    for i, ingredient in pairs(data.raw["technology"][techName].unit.ingredients) do
-        if ingredient[1] == itemName then
-            table.remove(data.raw["technology"][techName].unit.ingredients, i);
-        end
-    end
-end
-
-local function addPackToTech(techName, itemName, quantity)
-    table.insert(data.raw["technology"][techName].unit.ingredients, {itemName, quantity});
-end
-
-local function doesTableContain(table, doIExist)
-    for _, val in pairs(table) do
-        if val == doIExist then
-            return true;
-        end
-    end
-    return false;
-end
-
--- #region PLANET
 
 -- Add uranium ore to Arig
 local arig_map_gen = data.raw["planet"]["arig"].map_gen_settings
 
-local arig_autoplace_controls_to_add =
-{
+local arig_autoplace_controls_to_add = {
     ["uranium-ore"] = -- Add uranium ore
     {
         richness = 1,
         frequency = 6,
-        size = 1,
+        size = 1
     }
 }
 
@@ -72,24 +144,15 @@ for control_name, control_value in pairs(arig_autoplace_controls_to_add) do
     end
 end
 
-local arig_autoplace_settings_to_add =
-{
-    ["tile"] =
-    {
-        settings =
-        {
-        }
+local arig_autoplace_settings_to_add = {
+    ["tile"] = {
+        settings = {}
     },
-    ["decorative"] =
-    {
-        settings =
-        {
-        }
+    ["decorative"] = {
+        settings = {}
     },
-    ["entity"] =
-    {
-        settings =
-        {
+    ["entity"] = {
+        settings = {
             ["uranium-ore"] = {}
         }
     }
@@ -107,12 +170,6 @@ for category_name, category_settings in pairs(arig_autoplace_settings_to_add) do
     end
 end
 
--- Change space location params
-data.raw["planet"]["arig"].orientation = 0.40;
-if data.raw["space-connection"]["vulcanus-arig"] ~= nil then
-    data.raw["space-connection"]["vulcanus-arig"].length = 25000;
-end
-
 -- Remove uranium ore from Nauvis
 for i, autoplace in pairs(data.raw["planet"]["nauvis"].map_gen_settings.autoplace_controls) do
     if i == "uranium-ore" then
@@ -125,17 +182,15 @@ for i, autoplace in pairs(data.raw["planet"]["nauvis"].map_gen_settings.autoplac
     end
 end
 
--- #endregion
-
--- #region TECHNOLOGY
-
--- Replace nuclear science pack with compression science
+-- Replace nuclear science pack with compression science pack
 for i, technology in pairs(data.raw["technology"]) do
     if technology.prerequisites then
 
         local function hasPrereq(name)
             for _, p in ipairs(technology.prerequisites) do
-                if p == name then return true end
+                if p == name then
+                    return true
+                end
             end
             return false
         end
@@ -146,12 +201,6 @@ for i, technology in pairs(data.raw["technology"]) do
                 table.remove(technology.prerequisites, j);
                 if not hasPrereq("planetaris-compression-science") then
                     table.insert(technology.prerequisites, "planetaris-compression-science");
-                end
-            end
-            if prerequisite == "planetaris-heavy-glass" or prerequisite == "planetaris-glass" then -- Remove glass prereqs
-                table.remove(technology.prerequisites, j);
-                if not hasPrereq("planetaris-sand-sifting") then
-                    table.insert(technology.prerequisites, "planetaris-sand-sifting");
                 end
             end
         end
@@ -169,435 +218,184 @@ for i, technology in pairs(data.raw["technology"]) do
             end
         end
         if foundCompressionPack == false and removedNuclearPack == true then
-            table.insert(technology.unit.ingredients, {"planetaris-compression-science-pack", 1}); -- Secretas science pack productivity breaks this somehow?? idk man (maybe this is fixed now)
+            table.insert(technology.unit.ingredients, {"planetaris-compression-science-pack", 1});
         end
     end
 end
 
--- Prereqs
-table.insert(data.raw["technology"]["uranium-processing"].prerequisites, "planetaris-compression");
-table.insert(data.raw["technology"]["planetaris-compression-science"].prerequisites, "uranium-processing");
-data.raw["technology"]["planetaris-compression"].prerequisites = {"planetaris-sand-sifting"};
-data.raw["technology"]["planetaris-advanced-solar-panel"].prerequisites = {"planetaris-silica-processing"};
+-- Remove nuclear science pack from labs
+remove_lab_input("lab", "nuclear-science-pack")
+remove_lab_input("biolab", "nuclear-science-pack")
 
--- Fix Kovarex
-if data.raw["technology"]["kovarex-enrichment-process"].unit ~= nil then
-    data.raw["technology"]["kovarex-enrichment-process"].unit.count = 1000;
-    data.raw["technology"]["kovarex-enrichment-process"].unit.time = 60;
-    data.raw["technology"]["kovarex-enrichment-process"].unit.ingredients = 
-    {
-        {"automation-science-pack", 1},
-        {"logistic-science-pack", 1},
-        {"chemical-science-pack", 1},
-        {"space-science-pack", 1},
-        {"planetaris-compression-science-pack", 1}
-    }
-end
+-- Remove nuclear science pack tech
+data.raw["technology"]["nuclear-science-pack"] = nil
 
--- Remove nuclear science
-data.raw["technology"]["nuclear-science-pack"] = nil;
+-- Move uranium-related techs to Arig
+add_tech_prereq("uranium-mining", "planet-discovery-arig")
+add_tech_prereq("planetaris-compression-science", "uranium-processing")
 
--- Remove glass research, combine into sifting. Also move sandstone brick back
-data.raw["technology"]["planetaris-glass"] = nil;
-data.raw["technology"]["planetaris-heavy-glass"] = nil;
-table.insert(data.raw["technology"]["planetaris-sand-sifting"].effects, {type = "unlock-recipe", recipe = "planetaris-glass-panel"});
-table.insert(data.raw["technology"]["planetaris-sand-sifting"].effects, {type = "unlock-recipe", recipe = "planetaris-heavy-glass"});
-table.insert(data.raw["technology"]["planetaris-sand-sifting"].effects, {type = "unlock-recipe", recipe = "planetaris-sandstone-brick"});
+-- Nuclear power requires Heavy glass
+add_tech_prereq("nuclear-power", "planetaris-heavy-glass")
 
-for i, effect in pairs(data.raw["technology"]["planetaris-compression"].effects) do
-    if effect.recipe == "planetaris-sandstone-brick" then
-        table.remove(data.raw["technology"]["planetaris-compression"].effects, i);
-    end
-end
+-- Fix Kovarex enrichment process (keep production science pack change)
+add_tech_prereq("kovarex-enrichment-process", "space-science-pack")
+set_tech_unit("kovarex-enrichment-process", 1000, {
+    {"automation-science-pack", 1}, {"logistic-science-pack", 1}, {"chemical-science-pack", 1}, {"production-science-pack", 1}, {"space-science-pack", 1}, {"planetaris-compression-science-pack", 1}
+}, 30)
+
+-- Fix Atomic bomb
+add_pack_to_tech("atomic-bomb", "space-science-pack")
+add_tech_prereq("atomic-bomb", "space-science-pack")
+
+-- Add production and space science to Atom forge
+add_tech_prereq("atan-atom-forge", "production-science-pack")
+add_pack_to_tech("atan-atom-forge", "production-science-pack")
+add_pack_to_tech("atan-atom-forge", "space-science-pack")
 
 -- Remove Vulcanus requirement from Arig
-data.raw["technology"]["planet-discovery-arig"].prerequisites = {"space-platform-thruster"};
-removePackFromTech("planet-discovery-arig", "metallurgic-science-pack");
+data.raw["technology"]["planet-discovery-arig"].prerequisites = {"space-platform-thruster"}
+remove_pack_from_tech("planet-discovery-arig", "metallurgic-science-pack")
+remove_pack_from_tech("planetaris-arig-roboport", "metallurgic-science-pack")
+remove_pack_from_tech("planetaris-big-chest", "metallurgic-science-pack")
+remove_pack_from_tech("planetaris-heavy-glass-productivity", "metallurgic-science-pack")
+remove_pack_from_tech("planetaris-advanced-solar-panel", "metallurgic-science-pack")
+remove_pack_from_tech("planetaris-supported-solar-panel", "metallurgic-science-pack")
+remove_pack_from_tech("planetaris-water-harvesting", "metallurgic-science-pack")
+remove_pack_from_tech("planetaris-raw-quartz-productivity", "metallurgic-science-pack")
 
--- Add simple calcite processes to Arig
-table.insert(data.raw["technology"]["planetaris-sand-sifting"].effects, {type = "unlock-recipe", recipe = "steam-condensation"});
-table.insert(data.raw["technology"]["planetaris-advanced-sand-sifting"].effects, {type = "unlock-recipe", recipe = "simple-coal-liquefaction"});
+-- Add Vulcanus back as dependency for Hyarion
+if mods["planetaris-hyarion"] then
+    add_tech_prereq("planet-discovery-hyarion", "metallurgic-science-pack")
+end
+
+-- Fix Compression not dependent on glass
+add_tech_prereq("planetaris-compression", "planetaris-glass")
 
 -- Add concrete sandstone to compression tech
-table.insert(data.raw["technology"]["planetaris-compression"].effects, {type = "unlock-recipe", recipe = "h3-arig-sandstone-brick-concrete"});
-table.insert(data.raw["technology"]["planetaris-compression"].effects, {type = "unlock-recipe", recipe = "h3-arig-sandstone-brick-refined-concrete"});
+table.insert(data.raw["technology"]["planetaris-compression"].effects, {
+    type = "unlock-recipe",
+    recipe = "aa-sandstone-brick-concrete"
+})
 
--- Add simulating units to reactors
---data.raw["technology"]["nuclear-power"].prerequisites = {"planetaris-simulating-unit"};
-
--- Raw quartz productivity localized to Arig
-removePackFromTech("planetaris-raw-quartz-productivity", "metallurgic-science-pack");
-
--- Remove vulcanus from advanced solar panels
-removePackFromTech("planetaris-advanced-solar-panel", "metallurgic-science-pack");
-
--- Quantum processor simulating unit prereq
---table.insert(data.raw["technology"]["quantum-processor"].prerequisites, "planetaris-simulating-unit");
-
--- Remove production science from some techs, balancing out the progression a bit more
-if data.raw["technology"]["kovarex-enrichment-process"].unit ~= nil then
-    removePackFromTech("kovarex-enrichment-process", "production-science-pack");
-end
-data.raw["technology"]["kovarex-enrichment-process"].prerequisites = {"planetaris-compression-science"};
-removePackFromTech("planetaris-sandstone-foundation", "production-science-pack");
-data.raw["technology"]["planetaris-sandstone-foundation"].prerequisites = {"planetaris-compression-science"};
-removePackFromTech("planetaris-silica-processing", "production-science-pack");
-data.raw["technology"]["planetaris-silica-processing"].prerequisites = {"planetaris-compression-science"};
-removePackFromTech("planetaris-advanced-solar-panel", "production-science-pack");
---removePackFromTech("planetaris-simulating-unit", "production-science-pack");
-addPackToTech("nuclear-power", "space-science-pack", 1);
-
--- change water harvesting prereqs
-data.raw["technology"]["planetaris-water-harvesting"].prerequisites = {"planetaris-sand-sifting"};
-
--- vulcanus science pack embargo
-removePackFromTech("planetaris-supported-solar-panel", "metallurgic-science-pack");
-
--- vulcanus science pack embargo 2
-removePackFromTech("planetaris-arig-roboport", "metallurgic-science-pack");
-removePackFromTech("planetaris-big-chest", "metallurgic-science-pack");
-
--- I don't mind the container anymore
---[[
-if settings.startup["h3-arig-removeContainer"].value == true then
-    data.raw["technology"]["planetaris-big-chest"] = nil;
-end
-]]
-
--- Anything done to belts must be done without Hyarion, since that changes too much
-if not mods["planetaris-hyarion"] then
-    -- Optionally make belts higher tech and more difficult to craft
-    if settings.startup["h3-arig-difficultBelts"].value == true then
-        -- Tech
-        data.raw["technology"]["planetaris-hyper-transport-belt"].prerequisites = {"carbon-fiber", "electromagnetic-science-pack", "planetaris-silica-processing", "turbo-transport-belt"};
-        addPackToTech("planetaris-hyper-transport-belt", "agricultural-science-pack", 1);
-        addPackToTech("planetaris-hyper-transport-belt", "electromagnetic-science-pack", 1);
-
-        -- Recipe
-        removeItemFromRecipe("planetaris-hyper-transport-belt", "planetaris-silica");
-        addItemToRecipe("planetaris-hyper-transport-belt", "planetaris-silica", 1);
-        addItemToRecipe("planetaris-hyper-transport-belt", "carbon-fiber", 1);
-        addItemToRecipe("planetaris-hyper-transport-belt", "superconductor", 1);
-
-        removeItemFromRecipe("planetaris-hyper-underground-belt", "planetaris-silica");
-        addItemToRecipe("planetaris-hyper-underground-belt", "planetaris-silica", 5);
-        addItemToRecipe("planetaris-hyper-underground-belt", "carbon-fiber", 5);
-        addItemToRecipe("planetaris-hyper-underground-belt", "superconductor", 5);
-
-        removeItemFromRecipe("planetaris-hyper-splitter", "planetaris-silica");
-        addItemToRecipe("planetaris-hyper-splitter", "carbon-fiber", 2);
-        addItemToRecipe("planetaris-hyper-splitter", "superconductor", 2);
-
-        if H3_ARIG_RECYCLING ~= nil then
-            H3_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["planetaris-hyper-transport-belt"])
-            H3_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["planetaris-hyper-underground-belt"])
-            H3_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["planetaris-hyper-splitter"])
-        end
-
-        -- Entity
-        data.raw["transport-belt"]["planetaris-hyper-transport-belt"].speed = 0.1875;
-        data.raw["underground-belt"]["planetaris-hyper-underground-belt"].speed = 0.1875;
-        data.raw["splitter"]["planetaris-hyper-splitter"].speed = 0.1875;
-    end
+-- Require Fulgora science for supported solar panels and electric poles as these items can trivialize the buildable area restrictions on Fulgora
+if settings.startup["supported-solar-panel-requires-fulgora"].value == true then
+    add_pack_to_tech("planetaris-supported-solar-panel", "electromagnetic-science-pack")
+    add_tech_prereq("planetaris-supported-solar-panel", "electromagnetic-science-pack")
 end
 
--- #endregion
+-- Remove tungsten plate from heavy glass
+change_recipe("planetaris-heavy-glass", {
+    {
+        type = "item",
+        name = "planetaris-glass-panel",
+        amount = 2
+    }, {
+        type = "item",
+        name = "steel-plate",
+        amount = 4
+    }, {
+        type = "item",
+        name = "copper-plate",
+        amount = 4
+    }
+})
 
--- #region RECIPE
-
--- Change heavy glass to contain steel because all my homies hate Vulcanus
-removeItemFromRecipe("planetaris-heavy-glass", "tungsten-plate");
-removeItemFromRecipe("planetaris-heavy-glass", "planetaris-glass-panel");
-addItemToRecipe("planetaris-heavy-glass", "steel-plate", 4);
-addItemToRecipe("planetaris-heavy-glass", "copper-plate", 4);
-addItemToRecipe("planetaris-heavy-glass", "planetaris-glass-panel", 2);
-
--- Add uranium to planetaris science
-removeItemFromRecipe("planetaris-compression-science-pack", "planetaris-sandstone-brick");
-addItemToRecipe("planetaris-compression-science-pack", "uranium-238", 1);
+-- Add uranium-238 to planetaris science
+add_item_to_recipe("planetaris-compression-science-pack", "uranium-238", 1)
 
 -- Add uranium ore to sand sifting, and extra sulfur to compensate for additional costs elsewhere
-removeItemFromRecipeResults("planetaris-sand-sifting", "sulfur");
-table.insert(data.raw["recipe"]["planetaris-sand-sifting"].results, {type = "item", name = "uranium-ore", amount = 1,  probability = 0.04, show_details_in_recipe_tooltip = false});
-table.insert(data.raw["recipe"]["planetaris-sand-sifting"].results, {type = "item", name = "sulfur", amount = 1,  probability = 0.04, show_details_in_recipe_tooltip = false});
-table.insert(data.raw["recipe"]["planetaris-advanced-sand-sifting"].results, {type = "item", name = "uranium-ore", amount = 1,  probability = 0.2, show_details_in_recipe_tooltip = false});
+remove_item_from_recipe_results("planetaris-sand-sifting", "sulfur")
+table.insert(data.raw["recipe"]["planetaris-sand-sifting"].results, {
+    type = "item",
+    name = "uranium-ore",
+    amount = 1,
+    probability = 0.04,
+    show_details_in_recipe_tooltip = false
+})
+table.insert(data.raw["recipe"]["planetaris-sand-sifting"].results, {
+    type = "item",
+    name = "sulfur",
+    amount = 1,
+    probability = 0.04,
+    show_details_in_recipe_tooltip = false
+})
+table.insert(data.raw["recipe"]["planetaris-advanced-sand-sifting"].results, {
+    type = "item",
+    name = "uranium-ore",
+    amount = 1,
+    probability = 0.2,
+    show_details_in_recipe_tooltip = false
+})
 
--- Double sandstone brick usage in quartz to compensate for its removal from science
-removeItemFromRecipe("planetaris-raw-quartz", "planetaris-sandstone-brick");
-addItemToRecipe("planetaris-raw-quartz", "planetaris-sandstone-brick", 4);
+-- Add heavy glass to atom forge
+add_item_to_recipe("atan-atom-forge", "planetaris-heavy-glass", 20)
 
--- Assembler 4 recipe: Add nuclear components, remove tungsten, remove EM plant
---[[
-data.raw["recipe"]["planetaris-assembling-machine-4"].ingredients =
-{
-    {type = "item", name = "planetaris-simulating-unit", amount = 10},
-    {type = "item", name = "assembling-machine-3", amount = 2},
-    {type = "item", name = "uranium-fuel-cell", amount = 4},
-};
-data.raw["recipe"]["planetaris-assembling-machine-4"].category = "crafting";
-]]
+-- Make atom forge require Vulcanus, add tungsten carbide to recipe
+if settings.startup["atom-forge-requires-vulcanus"].value == true then
+    add_tech_prereq("atan-atom-forge", "metallurgic-science-pack")
+    add_pack_to_tech("atan-atom-forge", "metallurgic-science-pack")
+    add_item_to_recipe("atan-atom-forge", "tungsten-carbide", 40)
+end
 
--- Atom forge recipe: Add simulating unit and nuclear components
-data.raw["recipe"]["atan-atom-forge"].ingredients =
-{
-    {type = "item", name = "centrifuge", amount = 2},
-    {type = "item", name = "processing-unit", amount = 40},
-    {type = "item", name = "planetaris-heavy-glass", amount = 20},
-    {type = "item", name = "refined-concrete", amount = 100},
-    {type = "item", name = "uranium-fuel-cell", amount = 24},
-};
-data.raw["recipe"]["atan-atom-forge"].surface_conditions =
-{
+-- Add heavy glass to nuclear reactor
+change_recipe("nuclear-reactor", {
     {
-        property = "planetaris-dust-concentration",
-        min = 50,
-        max = 100,
+        type = "item",
+        name = "copper-plate",
+        amount = 100
+    }, {
+        type = "item",
+        name = "steel-plate",
+        amount = 100
+    }, {
+        type = "item",
+        name = "advanced-circuit",
+        amount = 500
+    }, {
+        type = "item",
+        name = "concrete",
+        amount = 500
+    }, {
+        type = "item",
+        name = "planetaris-heavy-glass",
+        amount = 100
     }
-};
+})
 
--- Make simulating units cheaper on heavy glass, remove EM plant restriction because why
---[[
-removeItemFromRecipe("planetaris-simulating-unit", "planetaris-heavy-glass");
-removeItemFromRecipe("planetaris-simulating-unit", "planetaris-silica");
-addItemToRecipe("planetaris-simulating-unit", "planetaris-heavy-glass", 2);
-addItemToRecipe("planetaris-simulating-unit", "planetaris-silica", 5);
-addFluidToRecipe("planetaris-simulating-unit", "sulfuric-acid", 5);
-data.raw["recipe"]["planetaris-simulating-unit"].category = "electronics";
-]]
+-- Add glass to portable fission reactor
+add_item_to_recipe("fission-reactor-equipment", "planetaris-glass-panel", 20)
 
--- EM -> Metallurgy for belts
-if not mods["planetaris-hyarion"] then
-    data.raw["recipe"]["planetaris-hyper-transport-belt"].category = "metallurgy";
-    data.raw["recipe"]["planetaris-hyper-underground-belt"].category = "metallurgy";
-    data.raw["recipe"]["planetaris-hyper-splitter"].category = "metallurgy";
-    data.raw["recipe"]["planetaris-hyper-transport-belt"].surface_conditions =
-    {
-        {
-            property = "pressure",
-            min = 4000,
-            max = 4000,
-        }
-    };
-    data.raw["recipe"]["planetaris-hyper-underground-belt"].surface_conditions =
-    {
-        {
-            property = "pressure",
-            min = 4000,
-            max = 4000,
-        }
-    };
-    data.raw["recipe"]["planetaris-hyper-splitter"].surface_conditions =
-    {
-        {
-            property = "pressure",
-            min = 4000,
-            max = 4000,
-        }
-    };
+-- Fix recycling recipes
+if ATOMIC_ARIG_RECYCLING ~= nil then
+    ATOMIC_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["planetaris-heavy-glass"])
+    ATOMIC_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["atan-atom-forge"])
+    ATOMIC_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["nuclear-reactor"])
+    ATOMIC_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["fission-reactor-equipment"])
 end
-
--- Change centrifuge
-removeItemFromRecipe("centrifuge", "steel-plate");
-addItemToRecipe("centrifuge", "planetaris-heavy-glass", 20);
-
--- Change reactor recipes
-removeItemFromRecipe("nuclear-reactor", "advanced-circuit");
-removeItemFromRecipe("nuclear-reactor", "steel-plate");
-removeItemFromRecipe("nuclear-reactor", "copper-plate");
-addItemToRecipe("nuclear-reactor", "steel-plate", 100);
-addItemToRecipe("nuclear-reactor", "copper-plate", 100);
-addItemToRecipe("nuclear-reactor", "planetaris-heavy-glass", 100);
-addItemToRecipe("nuclear-reactor", "processing-unit", 100);
-addItemToRecipe("fission-reactor-equipment", "planetaris-glass-panel", 20);
-
---removeItemFromRecipe("quantum-processor", "processing-unit");
---addItemToRecipe("quantum-processor", "planetaris-simulating-unit", 1);
-
--- Simple recipe for sandstone, might serve as a stone sink
-data.raw["recipe"]["planetaris-sandstone-brick"].category = "crafting-with-fluid";
-removeItemFromRecipe("planetaris-sandstone-brick", "planetaris-pure-sand");
-addFluidToRecipe("planetaris-sandstone-brick", "planetaris-pure-sand", 500);
-addItemToRecipe("planetaris-sandstone-brick", "stone", 40);
-removeItemFromRecipe("planetaris-glass-panel", "planetaris-pure-sand-barrel");
-removeItemFromRecipeResults("planetaris-glass-panel", "barrel");
-addItemToRecipe("planetaris-glass-panel", "planetaris-sandstone-brick", 2);
-
--- Add advanced recipe to press tech
-table.insert(data.raw["technology"]["planetaris-compression"].effects, {type = "unlock-recipe", recipe = "h3-arig-sandstone-brick-compression"});
-
--- Press press press press press, Cardi don't need more press
-removeItemFromRecipe("planetaris-press", "steel-plate");
-addItemToRecipe("planetaris-press", "planetaris-heavy-glass", 20);
-
--- Change heavy glass graphics
-data.raw["item"]["planetaris-heavy-glass"].icon = "__atomic-arig__/graphics/icons/h3-arig-heavy-glass.png";
-data.raw["recipe"]["planetaris-heavy-glass"].icon = "__atomic-arig__/graphics/icons/h3-arig-heavy-glass.png";
-
--- Optional: New chemical compression recipes now use lubricant as a catalyst for significant efficiency gains
-if settings.startup["h3-arig-lubricatedPress"].value == true then
-    -- Recipe
-    removeItemFromRecipe("planetaris-plastic-bar", "petroleum-gas");
-    addFluidToRecipe("planetaris-plastic-bar", "petroleum-gas", 20);
-    addFluidToRecipe("planetaris-plastic-bar", "lubricant", 10);
-
-    removeItemFromRecipe("planetaris-solid-fuel-from-heavy-oil", "heavy-oil");
-    addFluidToRecipe("planetaris-solid-fuel-from-heavy-oil", "heavy-oil", 5);
-    addFluidToRecipe("planetaris-solid-fuel-from-heavy-oil", "lubricant", 10);
-
-    removeItemFromRecipe("planetaris-solid-fuel-from-light-oil", "light-oil");
-    addFluidToRecipe("planetaris-solid-fuel-from-light-oil", "light-oil", 5);
-    addFluidToRecipe("planetaris-solid-fuel-from-light-oil", "lubricant", 10);
-
-    removeItemFromRecipe("planetaris-solid-fuel-from-petroleum-gas", "petroleum-gas");
-    addFluidToRecipe("planetaris-solid-fuel-from-petroleum-gas", "petroleum-gas", 15);
-    addFluidToRecipe("planetaris-solid-fuel-from-petroleum-gas", "lubricant", 10);
-
-    addFluidToRecipe("planetaris-carbon", "lubricant", 10);
-end
-
--- Optional: Make water harvesting much less efficient (We are on a dry planet after all)
-if settings.startup["h3-arig-harderWater"].value == true then
-    data.raw["recipe"]["planetaris-water-harvesting"].results = {{type="fluid", name="water", amount=10}};
-end
-
-if H3_ARIG_RECYCLING ~= nil then
-    H3_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["planetaris-heavy-glass"])
-    H3_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["atan-atom-forge"])
-    H3_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["centrifuge"])
-    H3_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["nuclear-reactor"])
-    H3_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["fission-reactor-equipment"])
-    H3_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["planetaris-sandstone-brick"])
-    H3_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["planetaris-glass-panel"])
-    H3_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["planetaris-press"])
-end
-
--- #endregion
-
--- #region ENTITY
-
--- Modify Assembler 4, slight nerf to put it below the advanced assembler from AoP
---data.raw["assembling-machine"]["planetaris-assembling-machine-4"].energy_source = {type = "void"};
---data.raw["assembling-machine"]["planetaris-assembling-machine-4"].allowed_effects = {"speed", "productivity", "quality"};
-
---[[
-data.raw["assembling-machine"]["planetaris-assembling-machine-4"].crafting_speed = 1.75;
-data.raw["item"]["planetaris-assembling-machine-4"].weight = data.raw["item"]["assembling-machine-3"].weight; -- only 3 could fit on a rocket for some reason
-data.raw["assembling-machine"]["planetaris-assembling-machine-4"].energy_usage = "232kW";
-]]
-
--- Modify Atom Forge, halved energy usage to justify higher crafting costs
---data.raw["assembling-machine"]["atan-atom-forge"].energy_source = {type = "void"};
---data.raw["assembling-machine"]["atan-atom-forge"].allowed_effects = {"speed", "productivity", "quality"};
-table.insert(data.raw["assembling-machine"]["atan-atom-forge"].crafting_categories, "compressing-or-crafting");
-data.raw["assembling-machine"]["atan-atom-forge"].energy_usage = "1250kW";
---[[
-data.raw["assembling-machine"]["atan-atom-forge"].surface_conditions =
-{
-    {
-        property = "planetaris-dust-concentration",
-        min = 50,
-        max = 100,
-    }
-};
-]]
-
--- Add Arig science crafting category to machines
-for i, machine in pairs(data.raw["assembling-machine"]) do
-    if doesTableContain(machine.crafting_categories, "crafting") or doesTableContain(machine.crafting_categories, "compressing") then
-        table.insert(machine.crafting_categories, "compressing-or-crafting");
-    end
-end
-data.raw["recipe"]["planetaris-compression-science-pack"].category = "compressing-or-crafting";
-
--- Reverse change to furnaces because we killed pure sand barrels
-local stone_furnace = data.raw["furnace"]["stone-furnace"]
-if stone_furnace then
-  if stone_furnace.result_inventory_size == 2 then
-    stone_furnace.result_inventory_size = 1
-  end
-end
-
-local steel_furnace = data.raw["furnace"]["steel-furnace"]
-if steel_furnace then
-  if steel_furnace.result_inventory_size == 2 then
-    steel_furnace.result_inventory_size = 1
-  end
-end
-
-local electric_furnace = data.raw["furnace"]["electric-furnace"]
-if electric_furnace then
-  if electric_furnace.result_inventory_size == 2 then
-    electric_furnace.result_inventory_size = 1
-  end
-end
-
--- #endregion
-
--- #region MOD COMPAT
 
 -- Paracelsin: Add new concrete recipes to productivity research
 if mods["Paracelsin"] then
-    table.insert(data.raw["technology"]["concrete-productivity"].effects, { type = "change-recipe-productivity", recipe = "h3-arig-sandstone-brick-concrete", change = 0.1});
-    table.insert(data.raw["technology"]["concrete-productivity"].effects, { type = "change-recipe-productivity", recipe = "h3-arig-sandstone-brick-refined-concrete", change = 0.1});
+    table.insert(data.raw["technology"]["concrete-productivity"].effects, {
+        type = "change-recipe-productivity",
+        recipe = "aa-sandstone-brick-concrete",
+        change = 0.1
+    })
 end
 
 -- Maraxsis: Glass productivity also affects Arig glasses
 if mods["maraxsis"] then
-    table.insert(data.raw["technology"]["maraxsis-glass-productivity"].effects, { type = "change-recipe-productivity", recipe = "planetaris-glass-panel", change = 0.1});
-    table.insert(data.raw["technology"]["maraxsis-glass-productivity"].effects, { type = "change-recipe-productivity", recipe = "planetaris-heavy-glass", change = 0.1});
-    addPackToTech("maraxsis-glass-productivity", "planetaris-compression-science-pack", 1);
-    table.insert(data.raw["technology"]["maraxsis-glass-productivity"].prerequisites, "planetaris-compression-science");
-end
-
--- Atomic robots: Add to Arig tech progression, adjust stats so that power draw is reduced but not entirely removed
-if mods["AtomicRobotsFix2Boost"] then
-    -- Recipe
-    data.raw["recipe"]["atomic-logistic-robot"].category = "advanced-centrifuging-or-crafting";
-    removeItemFromRecipe("atomic-logistic-robot", "fission-reactor-equipment");
-    addItemToRecipe("atomic-logistic-robot", "uranium-fuel-cell", 1);
-    addItemToRecipe("atomic-logistic-robot", "planetaris-raw-diamond", 1);
-    addItemToRecipe("atomic-logistic-robot", "supercapacitor", 2);
-    addItemToRecipe("atomic-logistic-robot", "low-density-structure", 1);
-
-    data.raw["recipe"]["atomic-construction-robot"].category = "advanced-centrifuging-or-crafting";
-    removeItemFromRecipe("atomic-construction-robot", "fission-reactor-equipment");
-    addItemToRecipe("atomic-construction-robot", "uranium-fuel-cell", 1);
-    addItemToRecipe("atomic-construction-robot", "planetaris-raw-diamond", 1);
-    addItemToRecipe("atomic-construction-robot", "superconductor", 2);
-    addItemToRecipe("atomic-construction-robot", "low-density-structure", 1);
-
-    if H3_ARIG_RECYCLING ~= nil then
-        H3_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["atomic-logistic-robot"])
-        H3_ARIG_RECYCLING.generate_recycling_recipe(data.raw["recipe"]["atomic-construction-robot"])
+    table.insert(data.raw["technology"]["maraxsis-glass-productivity"].effects, {
+        type = "change-recipe-productivity",
+        recipe = "planetaris-glass-panel",
+        change = 0.1
+    })
+    table.insert(data.raw["technology"]["maraxsis-glass-productivity"].effects, {
+        type = "change-recipe-productivity",
+        recipe = "planetaris-heavy-glass",
+        change = 0.1
+    })
+    if settings.startup["maraxsis-glass-productivity-requires-arig"].value == true then
+        add_pack_to_tech("maraxsis-glass-productivity", "planetaris-compression-science-pack")
+        add_tech_prereq("maraxsis-glass-productivity", "planetaris-compression-science")
     end
-
-    -- Tech
-    data.raw["technology"]["atomic-logistic-robots"].prerequisites = {"utility-science-pack", "planetaris-compression-science", "electromagnetic-science-pack"};
-    addPackToTech("atomic-logistic-robots", "utility-science-pack", 1);
-    addPackToTech("atomic-logistic-robots", "space-science-pack", 1);
-    addPackToTech("atomic-logistic-robots", "planetaris-compression-science-pack", 1);
-    addPackToTech("atomic-logistic-robots", "electromagnetic-science-pack", 1);
-
-    data.raw["technology"]["atomic-construction-robots"].prerequisites = {"utility-science-pack", "planetaris-compression-science", "electromagnetic-science-pack"};
-    addPackToTech("atomic-construction-robots", "utility-science-pack", 1);
-    addPackToTech("atomic-construction-robots", "space-science-pack", 1);
-    addPackToTech("atomic-construction-robots", "planetaris-compression-science-pack", 1);
-    addPackToTech("atomic-construction-robots", "electromagnetic-science-pack", 1);
-
-    -- Entity
-    data.raw["construction-robot"]["atomic-construction-robot"].speed = 0.09;
-    data.raw["construction-robot"]["atomic-construction-robot"].max_payload_size = 2;
-    data.raw["construction-robot"]["atomic-construction-robot"].max_energy = "3MJ";
-    data.raw["construction-robot"]["atomic-construction-robot"].energy_per_tick = "0.01kJ";
-    data.raw["construction-robot"]["atomic-construction-robot"].speed_multiplier_when_out_of_energy = 0.5;
-    data.raw["construction-robot"]["atomic-construction-robot"].energy_per_move = "1kJ";
-
-    data.raw["logistic-robot"]["atomic-logistic-robot"].speed = 0.09;
-    data.raw["logistic-robot"]["atomic-logistic-robot"].max_payload_size = 2;
-    data.raw["logistic-robot"]["atomic-logistic-robot"].max_energy = "3MJ";
-    data.raw["logistic-robot"]["atomic-logistic-robot"].energy_per_tick = "0.01kJ";
-    data.raw["logistic-robot"]["atomic-logistic-robot"].speed_multiplier_when_out_of_energy = 0.5;
-    data.raw["logistic-robot"]["atomic-logistic-robot"].energy_per_move = "1kJ";
 end
-
--- #endregion

@@ -1,26 +1,17 @@
-data:extend
-({
+data:extend({
     {
         type = "bool-setting",
-        name = "h3-arig-difficultBelts",
+        name = "supported-solar-panel-requires-fulgora",
         setting_type = "startup",
         default_value = true
-    }
-})
-data:extend
-({
-    {
+    }, {
         type = "bool-setting",
-        name = "h3-arig-lubricatedPress",
+        name = "atom-forge-requires-vulcanus",
         setting_type = "startup",
         default_value = true
-    }
-})
-data:extend
-({
-    {
+    }, {
         type = "bool-setting",
-        name = "h3-arig-harderWater",
+        name = "maraxsis-glass-productivity-requires-arig",
         setting_type = "startup",
         default_value = true
     }

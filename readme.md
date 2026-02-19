@@ -1,6 +1,10 @@
-# Atomic Arig
+# Atomic Arig Lite
 
-Arig from [Planetaris Unbounded: Arig](https://mods.factorio.com/mod/planetaris-unbounded) is a high quality planet with a unique feel and a fun niche of building within limited space while sifting resources from the endless dunes of its surface. However, I found its rewards a bit lacking in comparison with some other planets, and wanted to give the player more reason to go there before Vulcanus or Fulgora.
+*This is a fork of [Atomic Arig](https://mods.factorio.com/mod/atomic-arig) by Hexthree, rewritten to be more in line with default Arig while fixing issues in the original mod. Much of the overhaul and balance content has been removed.*
+
+***This is a beta release, expect to run into bugs and backup your save before installing/updating.***
+
+[🌐 Planetaris: Arig](https://mods.factorio.com/mod/planetaris-arig) is a high quality planet with a unique feel and a fun niche of building within limited space while sifting resources from the endless dunes of its surface. However, I found its rewards a bit lacking in comparison with some other planets, and wanted to give the player more reason to go there before Vulcanus or Fulgora.
 
 **Atomic Arig** attempts to achieve this by merging Arig's tech tree with [Nuclear Science](https://mods.factorio.com/mod/atan-nuclear-science) and making uranium a resource unique to the planet. No longer will energy be a solved problem once you start mining uranium on Nauvis-- you'll have to work for that privilege.
 

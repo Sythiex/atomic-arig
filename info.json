@@ -1,17 +1,16 @@
 {
-  "name": "atomic-arig",
-  "title": "Atomic Arig",
-  "description": "Uranium is now a resource unique to Planetaris Unbounded's Arig. Moves nuclear sciences onto the planet, tweaks recipes, and adjusts the tech tree to provide an alternative experience.",
-  "author": "hex3",
-  "homepage": "https://github.com/hex3gc/atomic-arig",
-  "version": "1.0.8",
+  "name": "atomic-arig-lite",
+  "title": "Atomic Arig Lite",
+  "description": "Fork/rewrite of Atomic Arig by hex3, updated with some of the overhaul content cut. Uranium is now a resource unique to Planetaris: Arig. Moves nuclear sciences onto the planet and adjusts the tech tree to provide an alternative experience.",
+  "author": "Sythiex",
+  "homepage": "https://github.com/Sythiex/atomic-arig",
+  "version": "0.1.0",
   "factorio_version": "2.0",
-  "dependencies": 
-  [
+  "dependencies": [
     "base >= 2.0.0",
     "atan-nuclear-science",
     "planetaris-arig",
-    "? AtomicRobotsFix2Boost"
+    "! atomic-arig"
   ],
   "quality_required": false,
   "space_travel_required": true,
