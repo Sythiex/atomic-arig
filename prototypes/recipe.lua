@@ -1,6 +1,6 @@
--- Concrete recipe as a sandstone brick sink
 data:extend({
     {
+        -- Concrete from sandstone brick
         type = "recipe",
         name = "aa-sandstone-brick-concrete",
         category = "compressing",
@@ -37,5 +37,30 @@ data:extend({
                 amount = 10
             }
         }
+    }, {
+        -- Glass in foundry
+        type = "recipe",
+        name = "aa-glass-panel-foundry",
+        category = "metallurgy",
+        subgroup = "arig-processes",
+        order = "a[sand-processing]-a[sifting]-d",
+        icon = "__atomic-arig-lite__/graphics/icons/aa-glass-panel-foundry.png",
+        enabled = false,
+        energy_required = 3,
+        ingredients = {
+            {
+                type = "fluid",
+                name = "planetaris-pure-sand",
+                amount = 100
+            }
+        },
+        results = {
+            {
+                type = "item",
+                name = "planetaris-glass-panel",
+                amount = 5
+            }
+        },
+        allow_productivity = true
     }
 })

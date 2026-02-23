@@ -11,13 +11,31 @@ local function add_item_to_recipe(recipe_name, item_name, quantity)
     })
 end
 
+local function remove_item_from_recipe(recipe_name, item_name)
+    local recipe = data.raw.recipe[recipe_name]
+    local removed = false
+
+    for i = #recipe.ingredients, 1, -1 do
+        local ingredient = recipe.ingredients[i]
+        local name = ingredient.name or ingredient[1]
+        local ingredient_type = ingredient.type or "item"
+
+        if ingredient_type == "item" and name == item_name then
+            table.remove(recipe.ingredients, i)
+            removed = true
+        end
+    end
+
+    return removed
+end
+
 local function remove_item_from_recipe_results(recipe_name, item_name)
     local recipe = data.raw.recipe[recipe_name]
     local results = recipe.results
 
     for i = #results, 1, -1 do
         local result = results[i]
-        if result[1] == item_name then
+        if result.name == item_name then
             table.remove(results, i)
         end
     end
@@ -31,6 +49,25 @@ local function change_recipe(name, ingredients, energy_required)
     if energy_required then
         r.energy_required = energy_required
     end
+end
+
+local function unlock_recipe_with_tech(tech_name, recipe_name)
+    local tech = data.raw.technology[tech_name]
+    local recipe = data.raw.recipe[recipe_name]
+    tech.effects = tech.effects or {}
+
+    for _, effect in ipairs(tech.effects) do
+        if effect.type == "unlock-recipe" and effect.recipe == recipe_name then
+            return false
+        end
+    end
+
+    table.insert(tech.effects, {
+        type = "unlock-recipe",
+        recipe = recipe_name
+    })
+
+    return true
 end
 
 local function add_tech_prereq(tech_name, prereq_name)
@@ -264,6 +301,7 @@ remove_pack_from_tech("planetaris-advanced-solar-panel", "metallurgic-science-pa
 remove_pack_from_tech("planetaris-supported-solar-panel", "metallurgic-science-pack")
 remove_pack_from_tech("planetaris-water-harvesting", "metallurgic-science-pack")
 remove_pack_from_tech("planetaris-raw-quartz-productivity", "metallurgic-science-pack")
+unlock_recipe_with_tech("planetaris-sand-sifting", "steam-condensation")
 
 -- change research time 30 → 60 (same as other starter planet discoveries)
 set_tech_unit("planet-discovery-arig", 1000, {{"automation-science-pack", 1}, {"logistic-science-pack", 1}, {"chemical-science-pack", 1}, {"space-science-pack", 1}}, 60)
@@ -277,15 +315,22 @@ end
 add_tech_prereq("planetaris-compression", "planetaris-glass")
 
 -- Add concrete sandstone to compression tech
-table.insert(data.raw["technology"]["planetaris-compression"].effects, {
-    type = "unlock-recipe",
-    recipe = "aa-sandstone-brick-concrete"
-})
+unlock_recipe_with_tech("planetaris-compression", "aa-sandstone-brick-concrete")
+
+-- Add glass recipe to foundry
+unlock_recipe_with_tech("planetaris-glass", "aa-glass-panel-foundry")
 
 -- Require Fulgora science for supported solar panels and electric poles as these items can trivialize the buildable area restrictions on Fulgora
-if settings.startup["supported-solar-panel-requires-fulgora"].value == true then
+if settings.startup["aa-supported-solar-panel-requires-fulgora"].value == true then
     add_pack_to_tech("planetaris-supported-solar-panel", "electromagnetic-science-pack")
     add_tech_prereq("planetaris-supported-solar-panel", "electromagnetic-science-pack")
+end
+
+-- Remove Arig requirement (and uranium-235) from biolabs
+if settings.startup["aa-biolab-remove-uranium"].value == true then
+    remove_pack_from_tech("biolab", "planetaris-compression-science-pack")
+    remove_tech_prereq("biolab", "planetaris-compression-science")
+    remove_item_from_recipe("biolab", "uranium-235")
 end
 
 -- Remove tungsten plate from heavy glass
@@ -333,10 +378,11 @@ table.insert(data.raw["recipe"]["planetaris-advanced-sand-sifting"].results, {
 })
 
 -- Add heavy glass to atom forge
+add_tech_prereq("atan-atom-forge", "planetaris-heavy-glass")
 add_item_to_recipe("atan-atom-forge", "planetaris-heavy-glass", 20)
 
 -- Make atom forge require Vulcanus, add tungsten carbide to recipe
-if settings.startup["atom-forge-requires-vulcanus"].value == true then
+if settings.startup["aa-atom-forge-requires-vulcanus"].value == true then
     add_tech_prereq("atan-atom-forge", "metallurgic-science-pack")
     add_pack_to_tech("atan-atom-forge", "metallurgic-science-pack")
     add_item_to_recipe("atan-atom-forge", "tungsten-carbide", 40)
@@ -399,7 +445,7 @@ if mods["maraxsis"] then
         recipe = "planetaris-heavy-glass",
         change = 0.1
     })
-    if settings.startup["maraxsis-glass-productivity-requires-arig"].value == true then
+    if settings.startup["aacompat-maraxsis-glass-productivity-requires-arig"].value == true then
         add_pack_to_tech("maraxsis-glass-productivity", "planetaris-compression-science-pack")
         add_tech_prereq("maraxsis-glass-productivity", "planetaris-compression-science")
     end

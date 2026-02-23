@@ -1,0 +1,10 @@
+---------------------------------------------------------------------------------------------------
+Version: 0.1.1
+Date: 2026.02.23
+  Minor Features:
+    - Steam condensation recipe now also unlocks on Arig
+    - Added glass panel recipe to foundry
+    - Added setting to remove Arig requirement (and uranium-235) from biolab
+  Bugfixes:
+    - Atom forge tech now depends on Heavy glass
+    - Removed extra sulfur result from sand sifting recipe
