@@ -39,8 +39,6 @@ local function remove_item_from_recipe_results(recipe_name, item_name)
             table.remove(results, i)
         end
     end
-
-    return
 end
 
 local function change_recipe(name, ingredients, energy_required)
@@ -48,6 +46,16 @@ local function change_recipe(name, ingredients, energy_required)
     r.ingredients = ingredients
     if energy_required then
         r.energy_required = energy_required
+    end
+end
+
+local function change_recipe_surface_conditions(recipe_name, surface_conditions)
+    local recipe = data.raw.recipe[recipe_name]
+
+    if surface_conditions == nil then
+        recipe.surface_conditions = nil
+    else
+        recipe.surface_conditions = table.deepcopy(surface_conditions)
     end
 end
 
@@ -103,7 +111,7 @@ local function remove_tech_prereq(tech_name, prereq_name)
 end
 
 local function add_pack_to_tech(tech_name, item_name, quantity)
-    table.insert(data.raw["technology"][tech_name].unit.ingredients, {item_name, quantity or 1})
+    table.insert(data.raw["technology"][tech_name].unit.ingredients, { item_name, quantity or 1 })
 end
 
 local function remove_pack_from_tech(tech_name, item_name)
@@ -140,8 +148,6 @@ local function set_tech_unit(tech_name, count, ingredients, time)
     if time ~= nil then
         tech.unit.time = time
     end
-
-    return
 end
 
 local function remove_lab_input(lab_name, input)
@@ -222,7 +228,6 @@ end
 -- Replace nuclear science pack with compression science pack
 for i, technology in pairs(data.raw["technology"]) do
     if technology.prerequisites then
-
         local function hasPrereq(name)
             for _, p in ipairs(technology.prerequisites) do
                 if p == name then
@@ -255,7 +260,7 @@ for i, technology in pairs(data.raw["technology"]) do
             end
         end
         if foundCompressionPack == false and removedNuclearPack == true then
-            table.insert(technology.unit.ingredients, {"planetaris-compression-science-pack", 1});
+            table.insert(technology.unit.ingredients, { "planetaris-compression-science-pack", 1 });
         end
     end
 end
@@ -277,7 +282,7 @@ add_tech_prereq("nuclear-power", "planetaris-heavy-glass")
 -- Fix Kovarex enrichment process (keep production science pack change)
 add_tech_prereq("kovarex-enrichment-process", "space-science-pack")
 set_tech_unit("kovarex-enrichment-process", 1000, {
-    {"automation-science-pack", 1}, {"logistic-science-pack", 1}, {"chemical-science-pack", 1}, {"production-science-pack", 1}, {"space-science-pack", 1}, {"planetaris-compression-science-pack", 1}
+    { "automation-science-pack", 1 }, { "logistic-science-pack", 1 }, { "chemical-science-pack", 1 }, { "production-science-pack", 1 }, { "space-science-pack", 1 }, { "planetaris-compression-science-pack", 1 }
 }, 30)
 
 -- Fix Atomic bomb
@@ -304,7 +309,7 @@ remove_pack_from_tech("planetaris-raw-quartz-productivity", "metallurgic-science
 unlock_recipe_with_tech("planetaris-sand-sifting", "steam-condensation")
 
 -- change research time 30 → 60 (same as other starter planet discoveries)
-set_tech_unit("planet-discovery-arig", 1000, {{"automation-science-pack", 1}, {"logistic-science-pack", 1}, {"chemical-science-pack", 1}, {"space-science-pack", 1}}, 60)
+set_tech_unit("planet-discovery-arig", 1000, { { "automation-science-pack", 1 }, { "logistic-science-pack", 1 }, { "chemical-science-pack", 1 }, { "space-science-pack", 1 } }, 60)
 
 -- Add Vulcanus back as dependency for Hyarion
 if mods["planetaris-hyarion"] then
@@ -340,14 +345,14 @@ change_recipe("planetaris-heavy-glass", {
         name = "planetaris-glass-panel",
         amount = 2
     }, {
-        type = "item",
-        name = "steel-plate",
-        amount = 4
-    }, {
-        type = "item",
-        name = "copper-plate",
-        amount = 4
-    }
+    type = "item",
+    name = "steel-plate",
+    amount = 4
+}, {
+    type = "item",
+    name = "copper-plate",
+    amount = 4
+}
 })
 
 -- Add uranium-238 to planetaris science
@@ -381,6 +386,9 @@ table.insert(data.raw["recipe"]["planetaris-advanced-sand-sifting"].results, {
 add_tech_prereq("atan-atom-forge", "planetaris-heavy-glass")
 add_item_to_recipe("atan-atom-forge", "planetaris-heavy-glass", 20)
 
+-- remove Nauvis-only surface restriction
+change_recipe_surface_conditions("atan-atom-forge", nil)
+
 -- Make atom forge require Vulcanus, add tungsten carbide to recipe
 if settings.startup["aa-atom-forge-requires-vulcanus"].value == true then
     add_tech_prereq("atan-atom-forge", "metallurgic-science-pack")
@@ -395,22 +403,22 @@ change_recipe("nuclear-reactor", {
         name = "copper-plate",
         amount = 100
     }, {
-        type = "item",
-        name = "steel-plate",
-        amount = 100
-    }, {
-        type = "item",
-        name = "advanced-circuit",
-        amount = 500
-    }, {
-        type = "item",
-        name = "concrete",
-        amount = 500
-    }, {
-        type = "item",
-        name = "planetaris-heavy-glass",
-        amount = 100
-    }
+    type = "item",
+    name = "steel-plate",
+    amount = 100
+}, {
+    type = "item",
+    name = "advanced-circuit",
+    amount = 500
+}, {
+    type = "item",
+    name = "concrete",
+    amount = 500
+}, {
+    type = "item",
+    name = "planetaris-heavy-glass",
+    amount = 100
+}
 })
 
 -- Add glass to portable fission reactor
