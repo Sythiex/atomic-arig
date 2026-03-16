@@ -81,6 +81,12 @@ end
 local function add_tech_prereq(tech_name, prereq_name)
     local tech = data.raw.technology[tech_name]
     local prereq = data.raw.technology[prereq_name]
+
+    if not prereq then
+        log("atomic-arig-lite: '" .. prereq_name .. "' missing! Skipping add prerequisite for '" .. tech_name .. "'")
+        return false
+    end
+
     tech.prerequisites = tech.prerequisites or {}
 
     for _, name in ipairs(tech.prerequisites) do
